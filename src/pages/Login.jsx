@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
@@ -25,15 +26,18 @@ export default function Login() {
       if (response.ok) {
         localStorage.setItem("token", data.token);
         setMessage("Login realizado!");
+        setIsSuccess(true);
         setTimeout(() => {
           navigate("/dashboard");
         }, 1500);
       } else {
         setMessage(data.message || "Credenciais inválidas.");
+        setIsSuccess(false);
       }
     } catch (error) {
       console.error("Erro na chamada:", error);
       setMessage("Erro na conexão com o servidor.");
+      setIsSuccess(false);
     }
   };
 
@@ -70,8 +74,17 @@ export default function Login() {
         </button>
 
         {message && (
-          <p className="text-red-500 text-center mt-4 text-sm">{message}</p>
+          <p className={`text-center mt-4 text-sm ${isSuccess ? 'text-green-500' : 'text-red-500'}`}>
+            {message}
+          </p>
         )}
+
+        <p className="text-center mt-4 text-sm text-gray-600">
+          Não tem uma conta?{" "}
+          <Link to="/register" className="text-blue-500 hover:text-blue-700">
+            Registre-se
+          </Link>
+        </p>
       </form>
     </div>
   );
