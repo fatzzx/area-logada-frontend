@@ -1,45 +1,55 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { ToastContainer, toast } from 'react-toastify';
+import { useAuth } from "../contexts/AuthContext";
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function Register() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { register } = useAuth();
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    setMessage("");
+    setIsLoading(true);
 
     try {
-      const response = await fetch(
-        "https://crud-mongo-sepia.vercel.app/user/register",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, email, password }),
-        },
-      );
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage("Usuário registrado com sucesso!");
+      const result = await register(username, email, password);
+      
+      if (result.success) {
+        toast.success("Usuário registrado com sucesso!");
         setTimeout(() => {
           navigate("/login");
         }, 1500);
       } else {
-        setMessage(data.message || "Erro ao registrar usuário.");
+        toast.error(result.message || "Erro ao registrar usuário.");
       }
     } catch (error) {
       console.error(error);
-      setMessage("Erro na conexão com o servidor.");
+      toast.error("Erro na conexão com o servidor.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
+      
       <form
         onSubmit={handleRegister}
         className="bg-white p-8 rounded-xl shadow-md w-full max-w-md"
@@ -53,6 +63,7 @@ export default function Register() {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
+          disabled={isLoading}
         />
         <input
           type="email"
@@ -61,6 +72,7 @@ export default function Register() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          disabled={isLoading}
         />
         <input
           type="password"
@@ -69,18 +81,23 @@ export default function Register() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          disabled={isLoading}
         />
 
         <button
           type="submit"
-          className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition"
+          className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition disabled:bg-green-400 disabled:cursor-not-allowed"
+          disabled={isLoading}
         >
-          Registrar
+          {isLoading ? "Registrando..." : "Registrar"}
         </button>
 
-        {message && (
-          <p className="text-center text-sm text-red-500 mt-4">{message}</p>
-        )}
+        <p className="text-center mt-4 text-sm text-gray-600">
+          Já tem uma conta?{" "}
+          <Link to="/login" className="text-blue-500 hover:text-blue-700">
+            Faça login
+          </Link>
+        </p>
       </form>
     </div>
   );
