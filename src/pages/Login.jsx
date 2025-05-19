@@ -9,7 +9,7 @@ export default function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-
+    console.log("Iniciando login...");
     try {
       const response = await fetch(
         "https://crud-mongo-sepia.vercel.app/user/login",
@@ -19,10 +19,11 @@ export default function Login() {
           body: JSON.stringify({ email, password }),
         },
       );
-
+      console.log("Resposta recebida:", response);
       const data = await response.json();
-
+      console.log("Dados recebidos:", data);
       if (response.ok) {
+        localStorage.setItem("token", data.token);
         setMessage("Login realizado!");
         setTimeout(() => {
           navigate("/dashboard");
@@ -30,7 +31,8 @@ export default function Login() {
       } else {
         setMessage(data.message || "Credenciais inválidas.");
       }
-    } catch {
+    } catch (error) {
+      console.error("Erro na chamada:", error);
       setMessage("Erro na conexão com o servidor.");
     }
   };
