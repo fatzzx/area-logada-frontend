@@ -1,211 +1,191 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { toast } from 'react-toastify';
 
 function AnimeForm() {
-  const { id } = useParams();
   const navigate = useNavigate();
-  const isEditMode = !!id;
-
+  const { id } = useParams();
   const [formData, setFormData] = useState({
     title: "",
-    synopsis: "",
     genre: "",
-    imageUrl: "",
-    addToUserList: false,
+    synopsis: "",
   });
-
-  const [loading, setLoading] = useState(isEditMode);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
-    // Se estiver no modo de edição, buscar dados do anime
-    if (isEditMode) {
-      const fetchAnime = async () => {
-        try {
-          const response = await fetch(
-            `https://crud-mongo-sepia.vercel.app/anime/${id}`,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-            },
-          );
-
-          if (response.ok) {
-            const data = await response.json();
-            setFormData({
-              title: data.title || "",
-              synopsis: data.synopsis || "",
-              genre: data.genre || "",
-              imageUrl: data.imageUrl || "",
-              addToUserList: data.addToUserList || false,
-            });
-          } else {
-            setError("Falha ao carregar dados do anime.");
-          }
-        } catch {
-          setError("Erro na conexão com o servidor.");
-        } finally {
-          setLoading(false);
-        }
-      };
-
+    if (id) {
       fetchAnime();
     }
-  }, [id, isEditMode]);
+  }, [id]);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === "checkbox" ? checked : value,
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const animeData = {
-      ...formData,
-      genre: formData.genre.split(",").map((g) => g.trim()),
-    };
-
+  const fetchAnime = async () => {
     try {
       const response = await fetch(
-        `https://crud-mongo-sepia.vercel.app/anime${id ? `/${id}` : ""}`,
+        `https://crud-mongo-sepia.vercel.app/anime/${id}`,
         {
-          method: id ? "PUT" : "POST",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
-          body: JSON.stringify(animeData),
         },
       );
 
       if (response.ok) {
-        if (formData.addToUserList) {
-          const addToListResponse = await fetch(
-            "https://crud-mongo-sepia.vercel.app/anime/addToList",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-              body: JSON.stringify({ animeId: id || response.json()._id }),
-            },
-          );
-
-          if (!addToListResponse.ok) {
-            alert("Erro ao adicionar anime à lista. Tente novamente.");
+        const data = await response.json();
+        setFormData(data);
+      } else {
+        let errorMessage = "Erro ao carregar dados do anime.";
+        
+        if (response.status === 403) {
+          errorMessage = "Você não tem permissão para editar animes.";
+        } else {
+          try {
+            const data = await response.json();
+            errorMessage = data.message || errorMessage;
+          } catch (e) {
+            // Se não conseguir ler o JSON, usa a mensagem padrão
           }
         }
+        
+        toast.error(errorMessage);
         navigate("/animes");
-      } else {
-        alert("Erro ao salvar anime. Tente novamente.");
       }
     } catch (error) {
-      alert("Erro na conexão com o servidor.");
+      toast.error("Erro na conexão com o servidor.");
+      navigate("/animes");
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const url = id
+        ? `https://crud-mongo-sepia.vercel.app/anime/${id}`
+        : "https://crud-mongo-sepia.vercel.app/anime";
+      const method = id ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        toast.success(id ? "Anime atualizado com sucesso!" : "Anime criado com sucesso!");
+        navigate("/animes");
+      } else {
+        let errorMessage = "Erro ao salvar anime. Tente novamente.";
+        
+        if (response.status === 403) {
+          errorMessage = "Você não tem permissão para criar/editar animes.";
+        } else {
+          try {
+            const data = await response.json();
+            errorMessage = data.message || errorMessage;
+          } catch (e) {
+            // Se não conseguir ler o JSON, usa a mensagem padrão
+          }
+        }
+        
+        toast.error(errorMessage);
+      }
+    } catch (error) {
+      toast.error("Erro na conexão com o servidor.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
 
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">
-        {isEditMode ? "Editar Anime" : "Adicionar Novo Anime"}
+        {id ? "Editar Anime" : "Novo Anime"}
       </h1>
 
-      {error && (
-        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
-          <p>{error}</p>
+      <form onSubmit={handleSubmit} className="max-w-2xl">
+        <div className="mb-4">
+          <label
+            htmlFor="title"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Nome
+          </label>
+          <input
+            type="text"
+            id="title"
+            name="title"
+            value={formData.title}
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
-      )}
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Título</label>
-            <input
-              type="text"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Sinopse</label>
-            <textarea
-              name="synopsis"
-              value={formData.synopsis}
-              onChange={handleChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-              rows="3"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Gênero</label>
-            <input
-              type="text"
-              name="genre"
-              value={formData.genre}
-              onChange={handleChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-              placeholder="Separe os gêneros por vírgula"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">URL da Imagem</label>
-            <input
-              type="text"
-              name="imageUrl"
-              value={formData.imageUrl}
-              onChange={handleChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-            />
-          </div>
-          <div>
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                name="addToUserList"
-                checked={formData.addToUserList}
-                onChange={handleChange}
-                className="mr-2"
-              />
-              <span className="text-sm font-medium text-gray-700">Adicionar à minha lista</span>
-            </label>
-          </div>
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => navigate("/animes")}
-              className="bg-gray-300 text-gray-800 py-2 px-4 rounded hover:bg-gray-400"
-            >
-              Cancelar
-            </button>
+        <div className="mb-4">
+          <label
+            htmlFor="genre"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Gênero
+          </label>
+          <input
+            type="text"
+            id="genre"
+            name="genre"
+            value={formData.genre}
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
 
-            <button
-              type="submit"
-              className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-              disabled={submitting}
-            >
-              {submitting ? "Salvando..." : "Salvar"}
-            </button>
-          </div>
-        </form>
-      </div>
+        <div className="mb-6">
+          <label
+            htmlFor="synopsis"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Sinopse
+          </label>
+          <textarea
+            id="synopsis"
+            name="synopsis"
+            value={formData.synopsis}
+            onChange={handleChange}
+            rows="4"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          ></textarea>
+        </div>
+
+        <div className="flex gap-4">
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 disabled:opacity-50"
+          >
+            {loading ? "Salvando..." : "Salvar"}
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate("/animes")}
+            className="bg-gray-300 text-gray-800 py-2 px-4 rounded hover:bg-gray-400"
+          >
+            Cancelar
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

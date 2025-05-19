@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from 'react-toastify';
 
 const AuthContext = createContext();
 
@@ -11,7 +12,8 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      fetchUserData();
+      setUser({ token }); // Simplesmente usa o token como usuário
+      setLoading(false);
     } else {
       setLoading(false);
     }
@@ -19,6 +21,8 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     try {
+      console.log("Tentando fazer login com:", { email });
+      
       const response = await fetch(
         "https://crud-mongo-sepia.vercel.app/user/login",
         {
@@ -29,10 +33,11 @@ export function AuthProvider({ children }) {
       );
 
       const data = await response.json();
+      console.log("Resposta do login:", data);
 
       if (response.ok) {
         localStorage.setItem("token", data.token);
-        setUser(data.user || { email }); // fallback se o backend não retorna o usuário
+        setUser({ token: data.token }); // Simplesmente usa o token como usuário
         return { success: true };
       } else {
         return {
@@ -41,7 +46,7 @@ export function AuthProvider({ children }) {
         };
       }
     } catch (error) {
-      console.error("Erro no login:", error);
+      console.error("Erro detalhado no login:", error);
       return { success: false, message: "Erro na conexão com o servidor." };
     }
   };
@@ -79,35 +84,6 @@ export function AuthProvider({ children }) {
     navigate("/login", { replace: true });
   };
 
-  const fetchUserData = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch("https://crud-mongo-sepia.vercel.app/user/me", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      } else {
-        // Se o token for inválido, faz logout
-        logout();
-      }
-    } catch (error) {
-      console.error("Erro ao carregar dados do usuário:", error);
-      logout();
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -116,7 +92,7 @@ export function AuthProvider({ children }) {
         loading,
         login,
         logout,
-        register,
+        register
       }}
     >
       {children}

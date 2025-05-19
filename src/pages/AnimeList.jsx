@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { toast } from 'react-toastify';
 
 function AnimeList() {
   const [animes, setAnimes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchAnimes = async () => {
@@ -22,10 +25,26 @@ function AnimeList() {
           const data = await response.json();
           setAnimes(data);
         } else {
-          setError("Falha ao carregar animes. Tente novamente mais tarde.");
+          let errorMessage = "Falha ao carregar animes. Tente novamente mais tarde.";
+          
+          if (response.status === 403) {
+            errorMessage = "Você não tem permissão para acessar esta funcionalidade.";
+          } else {
+            try {
+              const data = await response.json();
+              errorMessage = data.message || errorMessage;
+            } catch (e) {
+              // Se não conseguir ler o JSON, usa a mensagem padrão
+            }
+          }
+          
+          setError(errorMessage);
+          toast.error(errorMessage);
         }
-      } catch {
-        setError("Erro na conexão com o servidor.");
+      } catch (error) {
+        const errorMessage = "Erro na conexão com o servidor.";
+        setError(errorMessage);
+        toast.error(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -49,11 +68,25 @@ function AnimeList() {
 
         if (response.ok) {
           setAnimes(animes.filter((anime) => anime._id !== id));
+          toast.success("Anime excluído com sucesso!");
         } else {
-          alert("Erro ao excluir anime. Tente novamente.");
+          let errorMessage = "Erro ao excluir anime. Tente novamente.";
+          
+          if (response.status === 403) {
+            errorMessage = "Você não tem permissão para excluir animes.";
+          } else {
+            try {
+              const data = await response.json();
+              errorMessage = data.message || errorMessage;
+            } catch (e) {
+              // Se não conseguir ler o JSON, usa a mensagem padrão
+            }
+          }
+          
+          toast.error(errorMessage);
         }
-      } catch {
-        alert("Erro na conexão com o servidor.");
+      } catch (error) {
+        toast.error("Erro na conexão com o servidor.");
       }
     }
   };

@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { toast } from 'react-toastify';
 
 function AnimeDetail() {
   const { id } = useParams();
@@ -7,6 +9,7 @@ function AnimeDetail() {
   const [anime, setAnime] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchAnime = async () => {
@@ -24,10 +27,26 @@ function AnimeDetail() {
           const data = await response.json();
           setAnime(data);
         } else {
-          setError("Falha ao carregar dados do anime.");
+          let errorMessage = "Falha ao carregar dados do anime.";
+          
+          if (response.status === 403) {
+            errorMessage = "Você não tem permissão para acessar esta funcionalidade.";
+          } else {
+            try {
+              const data = await response.json();
+              errorMessage = data.message || errorMessage;
+            } catch (e) {
+              // Se não conseguir ler o JSON, usa a mensagem padrão
+            }
+          }
+          
+          setError(errorMessage);
+          toast.error(errorMessage);
         }
       } catch (error) {
-        setError("Erro na conexão com o servidor.");
+        const errorMessage = "Erro na conexão com o servidor.";
+        setError(errorMessage);
+        toast.error(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -50,12 +69,26 @@ function AnimeDetail() {
         );
 
         if (response.ok) {
+          toast.success("Anime excluído com sucesso!");
           navigate("/animes");
         } else {
-          alert("Erro ao excluir anime. Tente novamente.");
+          let errorMessage = "Erro ao excluir anime. Tente novamente.";
+          
+          if (response.status === 403) {
+            errorMessage = "Você não tem permissão para excluir animes.";
+          } else {
+            try {
+              const data = await response.json();
+              errorMessage = data.message || errorMessage;
+            } catch (e) {
+              // Se não conseguir ler o JSON, usa a mensagem padrão
+            }
+          }
+          
+          toast.error(errorMessage);
         }
       } catch (error) {
-        alert("Erro na conexão com o servidor.");
+        toast.error("Erro na conexão com o servidor.");
       }
     }
   };
@@ -75,12 +108,25 @@ function AnimeDetail() {
       );
 
       if (response.ok) {
-        alert("Anime adicionado à sua lista!");
+        toast.success("Anime adicionado à sua lista!");
       } else {
-        alert("Erro ao adicionar anime à lista. Tente novamente.");
+        let errorMessage = "Erro ao adicionar anime à lista. Tente novamente.";
+        
+        if (response.status === 403) {
+          errorMessage = "Você não tem permissão para adicionar animes à lista.";
+        } else {
+          try {
+            const data = await response.json();
+            errorMessage = data.message || errorMessage;
+          } catch (e) {
+            // Se não conseguir ler o JSON, usa a mensagem padrão
+          }
+        }
+        
+        toast.error(errorMessage);
       }
     } catch (error) {
-      alert("Erro na conexão com o servidor.");
+      toast.error("Erro na conexão com o servidor.");
     }
   };
 
