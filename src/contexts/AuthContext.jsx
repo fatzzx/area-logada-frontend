@@ -11,7 +11,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      fetchUserData(); // não precisa passar token se não for usar
+      fetchUserData();
     } else {
       setLoading(false);
     }
@@ -40,7 +40,8 @@ export function AuthProvider({ children }) {
           message: data.message || "Credenciais inválidas",
         };
       }
-    } catch {
+    } catch (error) {
+      console.error("Erro no login:", error);
       return { success: false, message: "Erro na conexão com o servidor." };
     }
   };
@@ -66,7 +67,8 @@ export function AuthProvider({ children }) {
           message: data.message || "Erro ao registrar usuário",
         };
       }
-    } catch {
+    } catch (error) {
+      console.error("Erro no registro:", error);
       return { success: false, message: "Erro na conexão com o servidor." };
     }
   };
@@ -74,16 +76,30 @@ export function AuthProvider({ children }) {
   const logout = () => {
     localStorage.removeItem("token");
     setUser(null);
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
 
   const fetchUserData = async () => {
     try {
-      // Simulando dados do usuário (ideal seria um endpoint como /user/me)
-      setUser({
-        username: "Usuário",
-        email: "usuario@exemplo.com",
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch("https://crud-mongo-sepia.vercel.app/user/me", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
+
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      } else {
+        // Se o token for inválido, faz logout
+        logout();
+      }
     } catch (error) {
       console.error("Erro ao carregar dados do usuário:", error);
       logout();

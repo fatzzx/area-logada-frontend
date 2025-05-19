@@ -1,48 +1,52 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { ToastContainer, toast } from 'react-toastify';
+import { useAuth } from "../contexts/AuthContext";
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    console.log("Iniciando login...");
+    setIsLoading(true);
+    
     try {
-      const response = await fetch(
-        "https://crud-mongo-sepia.vercel.app/user/login",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        },
-      );
-      console.log("Resposta recebida:", response);
-      const data = await response.json();
-      console.log("Dados recebidos:", data);
-      if (response.ok) {
-        localStorage.setItem("token", data.token);
-        setMessage("Login realizado!");
-        setIsSuccess(true);
-        setTimeout(() => {
-          navigate("/dashboard");
-        }, 1500);
+      const result = await login(email, password);
+      
+      if (result.success) {
+        toast.success("Login realizado com sucesso!");
+        navigate("/dashboard", { replace: true });
       } else {
-        setMessage(data.message || "Credenciais inválidas.");
-        setIsSuccess(false);
+        toast.error(result.message || "Credenciais inválidas.");
       }
     } catch (error) {
       console.error("Erro na chamada:", error);
-      setMessage("Erro na conexão com o servidor.");
-      setIsSuccess(false);
+      toast.error("Erro na conexão com o servidor.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
+      
       <form
         onSubmit={handleLogin}
         className="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm"
@@ -56,6 +60,7 @@ export default function Login() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          disabled={isLoading}
         />
         <input
           type="password"
@@ -64,20 +69,16 @@ export default function Login() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          disabled={isLoading}
         />
 
         <button
           type="submit"
-          className="w-full bg-black text-white py-3 rounded hover:bg-gray-800"
+          className="w-full bg-black text-white py-3 rounded hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          disabled={isLoading}
         >
-          Entrar
+          {isLoading ? "Entrando..." : "Entrar"}
         </button>
-
-        {message && (
-          <p className={`text-center mt-4 text-sm ${isSuccess ? 'text-green-500' : 'text-red-500'}`}>
-            {message}
-          </p>
-        )}
 
         <p className="text-center mt-4 text-sm text-gray-600">
           Não tem uma conta?{" "}
